@@ -31,7 +31,10 @@
   <button id="copyFromProfileBtn" class="btn" type="button">Copy Challenges From...</button>
   <input type="file" id="copyProfileFile" accept=".json">
 </header>
+<<<<<<< HEAD
 <div id="timezoneNotice" style="margin: 0 0 10px 0; font-size: 0.9em; color: #555;"></div>
+=======
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
 
 <main class="main">
   <div class="controls">
@@ -113,18 +116,26 @@ window.addEventListener('DOMContentLoaded', () => {
   const monthYearHeader = document.getElementById('monthYearHeader');
   const summaryContainer = document.getElementById('summaryContainer');
 
+<<<<<<< HEAD
   const timezoneNotice = document.getElementById('timezoneNotice');
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   timezoneNotice.textContent = `Calendar times are based on your local timezone: ${tz}`;
 
+=======
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
   let currentDate = new Date();
 
   function createNewProfile(name) {
     const profile = {
       name: name || prompt('Enter profile name:') || 'User',
       id: crypto.randomUUID().split('-')[0],
+<<<<<<< HEAD
       createdAt: new Date().toLocaleString('en-CA', { hour12: false, timeZoneName: 'short' }).replace(', ', 'T'),
       modifiedAt: new Date().toLocaleString('en-CA', { hour12: false, timeZoneName: 'short' }).replace(', ', 'T'),
+=======
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
       challenges: [],
       logs: {}
     };
@@ -133,7 +144,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function saveProfile() {
+<<<<<<< HEAD
     data.modifiedAt = new Date().toLocaleString('en-CA', { hour12: false, timeZoneName: 'short' }).replace(', ', 'T');
+=======
+    data.modifiedAt = new Date().toISOString();
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
     localStorage.setItem(LS_PROFILE, JSON.stringify(data));
     renderProfileInfo();
   }
@@ -166,7 +181,11 @@ window.addEventListener('DOMContentLoaded', () => {
           if (confirm('Copying challenges and logs will overwrite current ones. Continue?')) {
             data.challenges = obj.challenges;
             data.logs = obj.logs;
+<<<<<<< HEAD
             data.modifiedAt = new Date().toLocaleString('sv-SE', { timeZoneName: 'short' }).replace(' ', 'T');
+=======
+            data.modifiedAt = new Date().toISOString();
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
             saveProfile(); renderAll();
           }
         } else throw '';
@@ -213,6 +232,7 @@ window.addEventListener('DOMContentLoaded', () => {
   nextBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth()+1); renderCalendar(); });
 
   exportBtn.addEventListener('click', () => {
+<<<<<<< HEAD
     const now = new Date();
     const ts = now.toLocaleString('en-CA', { hour12: false }).replace(/[-:]/g, '').replace(', ', '-').replace(' ', '-');
     const tzOffset = -now.getTimezoneOffset();
@@ -221,6 +241,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const tzSign = tzOffset >= 0 ? '+' : '-';
     const tzLabel = `GMT${tzSign}${String(tzHours).padStart(2, '0')}${String(tzMins).padStart(2, '0')}`;
     const fname = `challenge_${data.name}_${ts}_${tzLabel}.json`;
+=======
+    const ts = new Date().toISOString().slice(0,19).split('T').join('-').replace(/:/g,'');
+    const fname = `challenge_${data.name}_${ts}.json`;
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -314,7 +338,11 @@ window.addEventListener('DOMContentLoaded', () => {
           data.challenges.forEach(ch=>{
             const start=new Date(ch.startDate),
                   end=new Date(ch.startDate); end.setDate(start.getDate()+ch.duration-1);
+<<<<<<< HEAD
             if (new Date(iso) >= start && new Date(iso) <= end){
+=======
+            if (new Date(iso)>=start && newate(iso)<=end){
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
               const v=(data.logs[iso]||{})[ch.name]||'';
               td.innerHTML+=`<div><strong>${ch.name}:</strong> `;
               if (!v) td.innerHTML+=`<button class="status-btn check" data-date="${iso}" data-name="${ch.name}" type="button" aria-label="Mark ${ch.name} on ${iso} as completed">✓</button>
@@ -363,4 +391,8 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 
 </body>
+<<<<<<< HEAD
 </html>
+=======
+</html>
+>>>>>>> 248ec3b2f8e12ca7634dee98de3c640b04724590
