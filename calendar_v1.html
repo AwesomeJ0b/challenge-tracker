@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Challenge Tracker with Profile</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: Arial; max-width:900px; margin:20px auto; display:flex; gap:20px; flex-direction:column; }
+  header { display:flex; justify-content:space-between; align-items:center; }
+  .main, .summary { width:100%; }
+  .controls, .challenge-area, .summary-controls { margin-bottom:10px; }
+  .btn { padding:6px 12px; margin:3px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th, td { border:1px solid #ccc; padding:5px; vertical-align:top; height:80px; }
+  th { background:#eee; }
+  #modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); }
+  #modalContent { background:#fff; padding:20px; margin:100px auto; width:320px; border-radius:4px; }
+  .status-btn { margin-left:4px; cursor:pointer; font-weight:bold; }
+  input[type="file"] { display:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span id="profileName">...</span> <small id="profileId"></small> |
+    Created: <span id="createdAt">-</span> |
+    Modified: <span id="modifiedAt">-</span>
+  </div>
+  <button id="editProfileBtn" class="btn">Edit Profile</button>
+</header>
+
+<div class="main">
+  <div class="controls">
+    <button id="prevMonth" class="btn">◀ Prev</button>
+    <span id="monthYearHeader"></span>
+    <button id="nextMonth" class="btn">Next ▶</button>
+  </div>
+  <div class="challenge-area">
+    <button id="addChallengeBtn" class="btn">Add Challenge</button>
+    <button id="resetAllBtn" class="btn">Reset All</button>
+    <div id="challengeList"></div>
+  </div>
+  <table><thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
+    <tbody id="calendarBody"></tbody>
+  </table>
+</div>
+
+<div class="summary">
+  <h3>Summary & Backup</h3>
+  <div>
+    <button id="exportBtn" class="btn">Export</button>
+    <button id="importBtn" class="btn">Import</button>
+    <input type="file" id="importFile" accept=".json">
+  </div>
+  <div id="summaryContainer"></div>
+</div>
+
+<div id="modal"><div id="modalContent">
+  <h3 id="modalTitle">Add Challenge</h3>
+  <label>Challenge: <input id="challengeName" type="text"></label><br><br>
+  <label>Duration (days): <input id="challengeDuration" type="number" min="1" value="1"></label>
+  <input type="hidden" id="editIndex"><br>
+  <button id="saveChallengeBtn" class="btn">Save</button>
+  <button id="cancelChallengeBtn" class="btn">Cancel</button>
+</div></div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const LS_PROFILE = 'profileData';
+  let data = JSON.parse(localStorage.getItem(LS_PROFILE)) || createNewProfile();
+
+  const profileNameEl = document.getElementById('profileName');
+  const profileIdEl = document.getElementById('profileId');
+  const createdAtEl = document.getElementById('createdAt');
+  const modifiedAtEl = document.getElementById('modifiedAt');
+  const editProfileBtn = document.getElementById('editProfileBtn');
+
+  const addBtn = document.getElementById('addChallengeBtn');
+  const resetBtn = document.getElementById('resetAllBtn');
+  const prevBtn = document.getElementById('prevMonth');
+  const nextBtn = document.getElementById('nextMonth');
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFile = document.getElementById('importFile');
+
+  const challengeList = document.getElementById('challengeList');
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const nameIn = document.getElementById('challengeName');
+  const durIn = document.getElementById('challengeDuration');
+  const editIndexIn = document.getElementById('editIndex');
+  const saveBtn = document.getElementById('saveChallengeBtn');
+  const cancelBtn = document.getElementById('cancelChallengeBtn');
+
+  const calendarBody = document.getElementById('calendarBody');
+  const monthYearHeader = document.getElementById('monthYearHeader');
+  const summaryContainer = document.getElementById('summaryContainer');
+
+  let currentDate = new Date();
+
+  function createNewProfile(name) {
+    const profile = {
+      name: name || prompt('Enter profile name:') || 'User',
+      id: crypto.randomUUID().split('-')[0],
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+      challenges: [],
+      logs: {}
+    };
+    localStorage.setItem(LS_PROFILE, JSON.stringify(profile));
+    return profile;
+  }
+
+  function saveProfile() {
+    data.modifiedAt = new Date().toISOString();
+    localStorage.setItem(LS_PROFILE, JSON.stringify(data));
+    renderProfileInfo();
+  }
+
+  function renderProfileInfo() {
+    profileNameEl.textContent = data.name;
+    profileIdEl.textContent = '(' + data.id + ')';
+    createdAtEl.textContent = data.createdAt.replace('T',' ').slice(0,19);
+    modifiedAtEl.textContent = data.modifiedAt.replace('T',' ').slice(0,19);
+  }
+
+  editProfileBtn.onclick = () => {
+    if (!confirm('Changing profile name will create a new profile. Export changes first. Continue?')) return;
+    data = createNewProfile(prompt('Enter new profile name:'));
+    saveProfile(); renderAll();
+  };
+
+  addBtn.onclick = () => openModal('add');
+  cancelBtn.onclick = () => modal.style.display = 'none';
+
+  saveBtn.onclick = () => {
+    const n = nameIn.value.trim();
+    const d = parseInt(durIn.value, 10);
+    const idx = +editIndexIn.value;
+
+    if (!n || !d) return alert('Complete fields.');
+
+    if (idx >= 0) {
+      const old = data.challenges[idx];
+      let newCh = {name:n, duration:d, startDate: old.startDate};
+      data.challenges[idx] = newCh;
+    } else {
+      data.challenges.push({name:n, duration:d, startDate: new Date().toISOString().slice(0,10)});
+    }
+
+    saveProfile(); closeModal(); renderAll();
+  };
+
+  resetBtn.onclick = () => {
+    if (confirm('Delete all challenges and logs?')) {
+      data.challenges=[]; data.logs={};
+      saveProfile(); renderAll();
+    }
+  };
+
+  prevBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth()-1); renderCalendar(); };
+  nextBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth()+1); renderCalendar(); };
+
+  exportBtn.onclick = () => {
+    const ts = new Date().toISOString().slice(0,19).split('T').join('-').replace(/:/g,'');
+    const fname = `challenge_${data.name}_${ts}.json`;
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = fname; a.href=url; a.click(); URL.revokeObjectURL(url);
+  };
+
+  importBtn.onclick = () => importFile.click();
+  importFile.onchange = () => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (obj.challenges && obj.logs && obj.id && obj.name) {
+          if (confirm('Importing will overwrite current profile. Continue?')) {
+            data = obj;
+            saveProfile(); renderAll();
+          }
+        } else throw '';
+      } catch {
+        alert('Invalid file format.');
+      }
+    };
+    reader.readAsText(importFile.files[0]);
+  };
+
+  function openModal(mode, i=-1) {
+    modal.style.display = 'block';
+    editIndexIn.value = i;
+    modalTitle.textContent = (mode === 'add' ? 'Add Challenge' : 'Edit Challenge');
+    if (mode==='edit') {
+      const ch = data.challenges[i];
+      nameIn.value = ch.name; durIn.value = ch.duration;
+    } else { nameIn.value=''; durIn.value=1; }
+  }
+
+  function closeModal() { modal.style.display = 'none'; }
+
+  function renderChallenges() {
+    challengeList.innerHTML = '';
+    data.challenges.forEach((ch,i) => {
+      const div = document.createElement('div');
+      div.innerHTML = `<strong>${ch.name}</strong> — ${ch.duration}d 
+        <button class="btn" data-a="e" data-i="${i}">✏️</button>
+        <button class="btn" data-a="d" data-i="${i}">🗑️</button>`;
+      challengeList.appendChild(div);
+    });
+    challengeList.querySelectorAll('button').forEach(btn => {
+      const i=+btn.dataset.i;
+      if (btn.dataset.a==='e') btn.onclick = () => openModal('edit',i);
+      if (btn.dataset.a==='d') btn.onclick = () => {
+        data.challenges.splice(i,1);
+        Object.values(data.logs).forEach(day=>delete day[data.challenges[i]?.name]);
+        saveProfile(); renderAll();
+      };
+    });
+  }
+
+  function attachStatus() {
+    calendarBody.querySelectorAll('.status-btn').forEach(btn => {
+      btn.onclick = () => {
+        const d = btn.dataset.date, n = btn.dataset.name;
+        if (!data.logs[d]) data.logs[d]={};
+        if (btn.classList.contains('check')) data.logs[d][n]='✓';
+        else if (btn.classList.contains('cross')) data.logs[d][n]='✗';
+        else delete data.logs[d][n];
+        saveProfile(); renderAll();
+      };
+      btn.oncontextmenu = e=>e.preventDefault();
+    });
+  }
+
+  function renderCalendar() {
+    calendarBody.innerHTML='';
+    const yr=currentDate.getFullYear(), mo=currentDate.getMonth();
+    monthYearHeader.textContent = currentDate.toLocaleString('default',{month:'long',year:'numeric'});
+    const first=new Date(yr,mo,1).getDay(), total=new Date(yr,mo+1,0).getDate();
+    let day=1;
+    for (let r=0;r<6;r++){
+      const tr=document.createElement('tr');
+      for (let c=0;c<7;c++){
+        const td=document.createElement('td');
+        if ((r===0&&c<first)||day>total) td.innerHTML='';
+        else {
+          const iso=new Date(yr,mo,day).toISOString().slice(0,10);
+          td.innerHTML=`<strong>${day}</strong><br>`;
+          data.challenges.forEach(ch=>{
+            const start=new Date(ch.startDate),
+                  end=new Date(ch.startDate); end.setDate(start.getDate()+ch.duration-1);
+            if (new Date(iso)>=start && new Date(iso)<=end){
+              const v=(data.logs[iso]||{})[ch.name]||'';
+              td.innerHTML+=`<div><strong>${ch.name}:</strong> `;
+              if (!v) td.innerHTML+=`<button class="status-btn check" data-date="${iso}" data-name="${ch.name}">✓</button>
+                                      <button class="status-btn cross" data-date="${iso}" data-name="${ch.name}">✗</button>`;
+              else td.innerHTML+=`${v} <button class="status-btn undo" data-date="${iso}" data-name="${ch.name}">Undo</button>`;
+              td.innerHTML+='</div>';
+            }
+          });
+          day++;
+        }
+        tr.appendChild(td);
+      }
+      calendarBody.appendChild(tr);
+    }
+    attachStatus();
+  }
+
+  function renderSummary() {
+    summaryContainer.innerHTML='';
+    data.challenges.forEach(ch=>{
+      let tot=0, succ=0;
+      const s=new Date(ch.startDate), e=new Date(ch.startDate); e.setDate(s.getDate()+ch.duration-1);
+      for (const d in data.logs){
+        const cd=new Date(d);
+        if (cd>=s&&cd<=e&&data.logs[d][ch.name]){
+          tot++;
+          if (data.logs[d][ch.name]==='✓') succ++;
+        }
+      }
+      const left=Math.max(0,ch.duration - tot),
+            div=document.createElement('div');
+      div.innerHTML=`<strong>${ch.name}</strong><br>✅ ${succ} / ${ch.duration}<br>⏳ Days left: ${left}`;
+      summaryContainer.appendChild(div);
+    });
+  }
+
+  function renderAll(){
+    renderProfileInfo();
+    renderChallenges();
+    renderCalendar();
+    renderSummary();
+  }
+
+  renderAll();
+});
+</script>
+
+</body>
+</html>
